@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Asymmetric Bet Calculator</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1c222b;
+    --border: #2a313c;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --amber: #d29922;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  header h1 { margin: 0 0 4px; font-size: 1.5rem; letter-spacing: -0.01em; }
+  header p { margin: 0 0 24px; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .card h2 { margin: 0 0 14px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+  form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 420px) { form { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field.full { grid-column: 1 / -1; }
+  label { font-size: 0.8rem; color: var(--muted); }
+  input {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 16px; /* prevents iOS zoom */
+    font-variant-numeric: tabular-nums;
+  }
+  input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,0.2); }
+  #ticker { text-transform: uppercase; }
+  #ticker::placeholder { text-transform: none; }
+
+  .actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  button {
+    font: inherit;
+    border-radius: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #0b1320; font-weight: 600; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button:hover:not(:disabled) { filter: brightness(1.1); }
+
+  .error { grid-column: 1 / -1; color: var(--red); font-size: 0.85rem; min-height: 1.2em; margin: 0; }
+
+  .flag {
+    display: flex; align-items: center; gap: 8px;
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;
+    font-size: 0.9rem; font-weight: 500;
+  }
+  .flag.warn { background: rgba(248,81,73,0.12); border: 1px solid rgba(248,81,73,0.4); color: #ffa198; }
+  .flag.ok   { background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.4); color: #7ee787; }
+  .flag.idle { background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: currentColor; }
+
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .metric .k { font-size: 0.75rem; color: var(--muted); }
+  .metric .v { font-size: 1.2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+
+  .saved { margin-top: 16px; }
+  .saved-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; }
+  .saved-head h2 { margin: 0; }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+  th, td { padding: 9px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 500; }
+  th:first-child, td:first-child { text-align: left; }
+  tbody tr:hover { background: var(--panel-2); }
+  td.ticker { font-weight: 600; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+  .pill.warn { background: rgba(248,81,73,0.15); color: #ffa198; }
+  .pill.ok { background: rgba(63,185,80,0.15); color: #7ee787; }
+  .del { padding: 4px 10px; font-size: 0.8rem; color: var(--red); background: transparent; border-color: rgba(248,81,73,0.4); }
+  .empty { color: var(--muted); text-align: center; padding: 24px 0; }
+
+  /* Card layout for saved positions on narrow screens */
+  @media (max-width: 640px) {
+    thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tr { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; padding: 6px 4px; }
+    tbody tr:hover { background: transparent; }
+    td { display: flex; justify-content: space-between; border: none; padding: 5px 10px; }
+    td::before { content: attr(data-label); color: var(--muted); font-size: 0.8rem; }
+    td:first-child { text-align: right; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Asymmetric Bet Calculator</h1>
+    <p>Size up the payoff of a trade before you take it.</p>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Inputs</h2>
+      <form id="form" novalidate autocomplete="off">
+        <div class="field full">
+          <label for="ticker">Ticker</label>
+          <input id="ticker" type="text" placeholder="e.g. ACME" maxlength="12">
+        </div>
+        <div class="field">
+          <label for="entry">Entry price ($)</label>
+          <input id="entry" type="number" inputmode="decimal" step="any" min="0" placeholder="10.00">
+        </div>
+        <div class="field">
+          <label for="size">Position size ($)</label>
+          <input id="size" type="number" inputmode="decimal" step="any" min="0" placeholder="5000">
+        </div>
+        <div class="field">
+          <label for="target">Bull-case target ($)</label>
+          <input id="target" type="number" inputmode="decimal" step="any" min="0" placeholder="30.00">
+        </div>
+        <div class="field">
+          <label for="stop">Bear-case stop ($)</label>
+          <input id="stop" type="number" inputmode="decimal" step="any" min="0" placeholder="7.00">
+        </div>
+        <div class="field full">
+          <label for="prob">Probability of bull case (%)</label>
+          <input id="prob" type="number" inputmode="decimal" step="any" min="0" max="100" placeholder="40">
+        </div>
+        <p class="error" id="error" role="alert"></p>
+        <div class="actions">
+          <button type="submit" class="primary" id="save" disabled>Save position</button>
+          <button type="button" id="clear">Clear</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Results</h2>
+      <div class="flag idle" id="flag"><span class="dot"></span><span id="flagText">Enter values to see results</span></div>
+      <div class="metrics">
+        <div class="metric"><div class="k">Upside to target</div><div class="v" id="upside">—</div></div>
+        <div class="metric"><div class="k">Downside to stop</div><div class="v" id="downside">—</div></div>
+        <div class="metric"><div class="k">Reward : risk</div><div class="v" id="rr">—</div></div>
+        <div class="metric"><div class="k">Expected value</div><div class="v" id="ev">—</div></div>
+        <div class="metric"><div class="k">Bull-case P/L</div><div class="v" id="bull">—</div></div>
+        <div class="metric"><div class="k">Bear-case P/L</div><div class="v" id="bear">—</div></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card saved">
+    <div class="saved-head">
+      <h2>Saved positions</h2>
+      <button type="button" id="clearAll" class="del" hidden>Delete all</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticker</th><th>Entry</th><th>Target</th><th>Stop</th><th>Prob</th><th>Size</th>
+            <th>Upside</th><th>Downside</th><th>R:R</th><th>EV $</th><th>EV %</th>
+            <th>Bull P/L</th><th>Bear P/L</th><th>Flag</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="empty">No saved positions yet.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const STORAGE_KEY = 'asymmetric-bet-calculator.positions';
+  const UPSIDE_THRESHOLD = 150; // percent
+
+  const $ = (id) => document.getElementById(id);
+  const inputs = ['ticker', 'entry', 'target', 'stop', 'prob', 'size'].reduce((o, id) => (o[id] = $(id), o), {});
+
+  const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+  const fmtUsd = (n) => usd.format(n);
+  const fmtSignedUsd = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + usd.format(Math.abs(n));
+  const fmtPct = (n) => n.toFixed(1) + '%';
+  const fmtSignedPct = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(1) + '%';
+  const signClass = (n) => (n > 0 ? 'pos' : n < 0 ? 'neg' : '');
+
+  // Core math. Returns null if inputs are incomplete, or { error } if invalid.
+  function compute(raw) {
+    const entry = parseFloat(raw.entry);
+    const target = parseFloat(raw.target);
+    const stop = parseFloat(raw.stop);
+    const prob = parseFloat(raw.prob);
+    const size = parseFloat(raw.size);
+    if ([entry, target, stop, prob, size].some((n) => !Number.isFinite(n))) return null;
+
+    if (entry <= 0) return { error: 'Entry price must be greater than 0.' };
+    if (size <= 0) return { error: 'Position size must be greater than 0.' };
+    if (target <= entry) return { error: 'Bull-case target must be above the entry price.' };
+    if (stop >= entry) return { error: 'Bear-case stop must be below the entry price.' };
+    if (stop < 0) return { error: 'Bear-case stop cannot be negative.' };
+    if (prob < 0 || prob > 100) return { error: 'Probability must be between 0 and 100.' };
+
+    const p = prob / 100;
+    const upsidePct = (target - entry) / entry * 100;
+    const downsidePct = (entry - stop) / entry * 100;
+    const bullPL = size * upsidePct / 100;
+    const bearPL = -size * downsidePct / 100;
+    const evUsd = p * bullPL + (1 - p) * bearPL;
+    const evPct = evUsd / size * 100;
+
+    return {
+      ticker: (raw.ticker || '').trim().toUpperCase(),
+      entry, target, stop, prob, size,
+      upsidePct, downsidePct,
+      rr: upsidePct / downsidePct,
+      bullPL, bearPL, evUsd, evPct,
+      lowUpside: upsidePct < UPSIDE_THRESHOLD,
+    };
+  }
+
+  function readForm() {
+    const o = {};
+    for (const k in inputs) o[k] = inputs[k].value;
+    return o;
+  }
+
+  function setMetric(id, text, cls) {
+    const el = $(id);
+    el.textContent = text;
+    el.className = 'v' + (cls ? ' ' + cls : '');
+  }
+
+  let current = null;
+
+  function update() {
+    const r = compute(readForm());
+    $('error').textContent = r && r.error ? r.error : '';
+    current = r && !r.error ? r : null;
+    $('save').disabled = !current || !current.ticker;
+
+    const flag = $('flag');
+    if (!current) {
+      ['upside', 'downside', 'rr', 'ev', 'bull', 'bear'].forEach((id) => setMetric(id, '—'));
+      flag.className = 'flag idle';
+      $('flagText').textContent = 'Enter values to see results';
+      return;
+    }
+
+    setMetric('upside', fmtSignedPct(current.upsidePct), 'pos');
+    setMetric('downside', fmtSignedPct(-current.downsidePct), 'neg');
+    setMetric('rr', current.rr.toFixed(2) + ' : 1');
+    setMetric('ev', fmtSignedUsd(current.evUsd) + ' (' + fmtSignedPct(current.evPct) + ')', signClass(current.evUsd));
+    setMetric('bull', fmtSignedUsd(current.bullPL), 'pos');
+    setMetric('bear', fmtSignedUsd(current.bearPL), 'neg');
+
+    if (current.lowUpside) {
+      flag.className = 'flag warn';
+      $('flagText').textContent = 'Upside ' + fmtPct(current.upsidePct) + ' is under ' + UPSIDE_THRESHOLD + '% — not asymmetric enough';
+    } else {
+      flag.className = 'flag ok';
+      $('flagText').textContent = 'Upside ' + fmtPct(current.upsidePct) + ' clears the ' + UPSIDE_THRESHOLD + '% bar';
+    }
+  }
+
+  // ---- Persistence ----
+  function load() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function store(list) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
+  }
+
+  let positions = load();
+
+  function cell(tr, label, text, cls) {
+    const td = document.createElement('td');
+    td.dataset.label = label;
+    td.textContent = text;
+    if (cls) td.className = cls;
+    tr.appendChild(td);
+    return td;
+  }
+
+  function render() {
+    const tbody = $('rows');
+    tbody.innerHTML = '';
+    positions.forEach((saved) => {
+      // Recompute from stored inputs so the table always reflects current math.
+      const r = compute(saved);
+      if (!r || r.error) return;
+      const tr = document.createElement('tr');
+      cell(tr, 'Ticker', r.ticker || '—', 'ticker');
+      cell(tr, 'Entry', fmtUsd(r.entry));
+      cell(tr, 'Target', fmtUsd(r.target));
+      cell(tr, 'Stop', fmtUsd(r.stop));
+      cell(tr, 'Prob', fmtPct(r.prob));
+      cell(tr, 'Size', fmtUsd(r.size));
+      cell(tr, 'Upside', fmtSignedPct(r.upsidePct), 'pos');
+      cell(tr, 'Downside', fmtSignedPct(-r.downsidePct), 'neg');
+      cell(tr, 'R:R', r.rr.toFixed(2) + ' : 1');
+      cell(tr, 'EV $', fmtSignedUsd(r.evUsd), signClass(r.evUsd));
+      cell(tr, 'EV %', fmtSignedPct(r.evPct), signClass(r.evPct));
+      cell(tr, 'Bull P/L', fmtSignedUsd(r.bullPL), 'pos');
+      cell(tr, 'Bear P/L', fmtSignedUsd(r.bearPL), 'neg');
+
+      const flagTd = cell(tr, 'Flag', '');
+      const pill = document.createElement('span');
+      pill.className = 'pill ' + (r.lowUpside ? 'warn' : 'ok');
+      pill.textContent = r.lowUpside ? '< ' + UPSIDE_THRESHOLD + '%' : 'OK';
+      flagTd.appendChild(pill);
+
+      const delTd = cell(tr, '', '');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'del';
+      btn.textContent = 'Delete';
+      btn.setAttribute('aria-label', 'Delete ' + (r.ticker || 'position'));
+      btn.addEventListener('click', () => {
+        positions = positions.filter((p) => p.id !== saved.id);
+        store(positions);
+        render();
+      });
+      delTd.appendChild(btn);
+
+      tbody.appendChild(tr);
+    });
+    const hasRows = tbody.children.length > 0;
+    $('empty').hidden = hasRows;
+    $('clearAll').hidden = !hasRows;
+  }
+
+  // ---- Events ----
+  $('form').addEventListener('input', update);
+
+  $('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!current || !current.ticker) return;
+    positions.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      ticker: current.ticker,
+      entry: current.entry,
+      target: current.target,
+      stop: current.stop,
+      prob: current.prob,
+      size: current.size,
+    });
+    store(positions);
+    render();
+  });
+
+  $('clear').addEventListener('click', () => {
+    $('form').reset();
+    update();
+    inputs.ticker.focus();
+  });
+
+  $('clearAll').addEventListener('click', () => {
+    if (!confirm('Delete all saved positions?')) return;
+    positions = [];
+    store(positions);
+    render();
+  });
+
+  update();
+  render();
+})();
+</script>
+</body>
+</html>
